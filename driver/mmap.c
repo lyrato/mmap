@@ -217,11 +217,30 @@ static struct vm_operations_struct skeleton_remap_vm_ops = {
 static int skeleton_mmap(struct file * filp, struct vm_area_struct * vma)
 {
 	int ret;
+	unsigned int tmp,tmp2;
+	int i;
+		kmalloc_ptr = __get_free_pages(GFP_KERNEL,4);
+	if (!kmalloc_ptr) 
+	{
+		printk("kmalloc failedn\n");
+		return 0;
+	}
+	kmalloc_area = kmalloc_ptr;
+	
+    tmp = sizeof(int);
+    for( i = 0; i < (10 * tmp); i = i + tmp) 
+	{
+        kmalloc_ptr[i] = (unsigned int)i;
+        tmp2 = (unsigned int)kmalloc_ptr[i];
+        printk("kmalloc_ptr[%d]=%d\n", i, tmp2);
+    }
 	ret = remap_pfn_range(vma,
                vma->vm_start,
                virt_to_phys((void*)((unsigned long)kmalloc_area)) >> PAGE_SHIFT,
+              //(((unsigned long)kmalloc_area)) >> PAGE_SHIFT,
                vma->vm_end-vma->vm_start,
                PAGE_SHARED);
+     printk("mmap size:%d\n",vma->vm_end-vma->vm_start);          
      if(ret != 0) 
 	   {
          return -EAGAIN;
@@ -260,38 +279,15 @@ static int __init skeleton_init_module (void)
 		return - EIO;
  
  // reserve memory with kmalloc - Allocating Memory in the Kernel
-	kmalloc_ptr = kmalloc(LEN + 2 * PAGE_SIZE, GFP_KERNEL);
-	if (!kmalloc_ptr) 
-	{
-		printk("kmalloc failedn\n");
-		return 0;
-	}
-	kmalloc_area = (unsigned int *)(((unsigned long)kmalloc_ptr + PAGE_SIZE -1) & PAGE_MASK);
-	#if 0
-	for (virt_addr=(unsigned long)kmalloc_area; virt_addr < (unsigned long)kmalloc_area + LEN;
-         virt_addr+=PAGE_SIZE) 
-	{
-   // reserve all pages to make them remapable
-		SetPageReserved(virt_to_page(virt_addr));	
-	}
-	#endif
-	//printk("kmalloc_area at 0x%p (phys 0x%lx)\n", kmalloc_area,
-          //  virt_to_phys((void *)virt_to_kseg(kmalloc_area)));
- // fill allocated memory with integers
-    tmp = sizeof(int);
-    for( i = 0; i < (10 * tmp); i = i + tmp) 
-	{
-        kmalloc_ptr[i] = (unsigned int)i;
-        tmp2 = (unsigned int)kmalloc_ptr[i];
-        printk("kmalloc_ptr[%d]=%d\n", i, tmp2);
-    }
+
+
 	return 0;
 }
 // close and cleanup module
 static void __exit skeleton_cleanup_module (void) 
 {
 	printk("cleaning up modulen");
-	kfree(kmalloc_ptr);
+	free_pages(kmalloc_ptr,4);
 	unregister_chrdev (SKELETON_MAJOR, SKELETON_NAME);
 }
 module_init(skeleton_init_module);
